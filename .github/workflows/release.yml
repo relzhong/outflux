@@ -15,7 +15,7 @@ jobs:
   build-release:
     runs-on: ubuntu-latest
     env:
-      GOPROXY: https://proxy.golang.org,direct
+      GOPROXY: https://proxy.golang.org
       GOSUMDB: sum.golang.org
 
     steps:
