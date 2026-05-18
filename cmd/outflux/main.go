@@ -1,6 +1,6 @@
 package main
 
-const outfluxVersion = "0.3.0"
+var outfluxVersion = "dev"
 
 func main() {
 	RootCmd.Execute()
