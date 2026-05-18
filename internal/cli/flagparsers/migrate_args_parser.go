@@ -86,6 +86,11 @@ func FlagsToMigrateConfig(flags *pflag.FlagSet, args []string) (*cli.ConnectionC
 		return nil, nil, err
 	}
 	validateNotNullSourceData, _ := flags.GetBool(ValidateNotNullSourceData)
+	preflightShardPause, _ := flags.GetString(PreflightShardPauseFlag)
+	preflightMaxWindow, _ := flags.GetString(PreflightMaxWindowFlag)
+	if validateNotNullSourceData && limit > 0 {
+		return nil, nil, fmt.Errorf("'%s' cannot be used with '%s'", ValidateNotNullSourceData, LimitFlag)
+	}
 	migrateArgs := &cli.MigrationConfig{
 		RetentionPolicy:                      rp,
 		OutputSchemaStrategy:                 strategy,
@@ -108,6 +113,8 @@ func FlagsToMigrateConfig(flags *pflag.FlagSet, args []string) (*cli.ConnectionC
 		ChunkTimeInterval:                    chunkTimeInterval,
 		TableMappings:                        tableMappings,
 		ValidateNotNullSourceData:            validateNotNullSourceData,
+		PreflightShardPause:                  preflightShardPause,
+		PreflightMaxWindow:                   preflightMaxWindow,
 	}
 
 	return connectionArgs, migrateArgs, nil

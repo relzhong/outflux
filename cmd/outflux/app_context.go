@@ -18,6 +18,7 @@ type appContext struct {
 	influxTagExplorer     discovery.TagExplorer
 	influxFieldExplorer   discovery.FieldExplorer
 	influxMeasureExplorer discovery.MeasureExplorer
+	influxShardExplorer   discovery.ShardExplorer
 	extractorService      extraction.ExtractorService
 	schemaManagerService  schemamanagement.SchemaManagerService
 	transformerService    cli.TransformerService
@@ -32,6 +33,7 @@ func initAppContext() *appContext {
 	influxTagExplorer := discovery.NewTagExplorer(influxQueryService)
 	influxFieldExplorer := discovery.NewFieldExplorer(influxQueryService)
 	influxMeasureExplorer := discovery.NewMeasureExplorer(influxQueryService, influxFieldExplorer)
+	influxShardExplorer := discovery.NewShardExplorer(influxQueryService)
 	schemaManagerService := schemamanagement.NewSchemaManagerService(influxMeasureExplorer, influxTagExplorer, influxFieldExplorer)
 	extractorService := extraction.NewExtractorService(schemaManagerService)
 
@@ -50,5 +52,6 @@ func initAppContext() *appContext {
 		influxTagExplorer:     influxTagExplorer,
 		influxFieldExplorer:   influxFieldExplorer,
 		influxMeasureExplorer: influxMeasureExplorer,
+		influxShardExplorer:   influxShardExplorer,
 	}
 }

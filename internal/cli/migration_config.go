@@ -29,4 +29,6 @@ type MigrationConfig struct {
 	ChunkTimeInterval                    string
 	TableMappings                        map[string]string
 	ValidateNotNullSourceData            bool
+	PreflightShardPause                  string
+	PreflightMaxWindow                   string
 }

@@ -58,6 +58,8 @@ func initMigrateCmd() *cobra.Command {
 	migrateCmd.PersistentFlags().String(flagparsers.ChunkTimeIntervalFlag, flagparsers.DefaultChunkTimeInterval, "chunk_time_interval of the hypertables created by Outflux")
 	migrateCmd.PersistentFlags().StringArray(flagparsers.TableMapFlag, nil, "Map an InfluxDB measurement to a PostgreSQL table name. May be repeated: --table-map source=target")
 	migrateCmd.PersistentFlags().Bool(flagparsers.ValidateNotNullSourceData, false, "Validate the selected source rows before accepting existing non-time NOT NULL target columns")
+	migrateCmd.PersistentFlags().String(flagparsers.PreflightShardPauseFlag, flagparsers.DefaultPreflightShardPause, "Optional pause between non-null preflight windows, e.g. 500ms")
+	migrateCmd.PersistentFlags().String(flagparsers.PreflightMaxWindowFlag, flagparsers.DefaultPreflightMaxWindow, "Optional maximum non-null preflight window size, e.g. 24h")
 
 	return migrateCmd
 }

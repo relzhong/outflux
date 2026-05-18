@@ -173,7 +173,9 @@ Available flags are:
 | fields-as-json   | bool    | false                 | If this flag is set to true, then the Fields of the influx measures being exported will be combined into a single JSONb column in Timescale |
 | fields-column    | string  | fields                | When `fields-as-json` is set, this column specifies the name of the JSON column for the fields |
 | table-map        | string[]|                       | Map an InfluxDB measurement to a PostgreSQL table name. May be repeated, e.g. `--table-map cpu=computer_cpu` |
-| validate-not-null-source-data | bool | false         | Before migrating into an existing target table, validate selected source rows so non-time `NOT NULL` target columns can be accepted |
+| validate-not-null-source-data | bool | false         | Before migrating into an existing target table, validate selected source rows so non-time `NOT NULL` target columns can be accepted. Validation walks InfluxDB shard-group windows one at a time and cannot be combined with `--limit`. |
+| preflight-shard-pause | string |                    | Optional pause between `validate-not-null-source-data` windows, for example `500ms`. |
+| preflight-max-window | string |                     | Optional maximum window size for `validate-not-null-source-data`; shard groups larger than this are split further, for example `24h`. |
 | multishard-int-float-cast | bool    | false                 | If a field is Int64 in one shard, and Float64 in another, with this flag it will be cast to Float64 despite possible data loss |
 | quiet                      | bool    | false                 | If specified will suppress any log to STDOUT |
 
@@ -230,6 +232,14 @@ $ outflux migrate benchmark cpu \
 $ outflux migrate benchmark cpu mem \
 > --table-map cpu=computer_cpu \
 > --table-map mem=computer_mem
+```
+
+* Validate existing non-time `NOT NULL` target columns before migrating, while splitting the validation into smaller windows and pausing briefly between them
+```bash
+$ outflux migrate benchmark cpu \
+> --validate-not-null-source-data \
+> --preflight-max-window=24h \
+> --preflight-shard-pause=500ms
 ```
 
 
