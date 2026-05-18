@@ -14,6 +14,9 @@ permissions:
 jobs:
   build-release:
     runs-on: ubuntu-latest
+    env:
+      GOPROXY: https://proxy.golang.org,direct
+      GOSUMDB: sum.golang.org
 
     steps:
       - name: Checkout pushed ref
