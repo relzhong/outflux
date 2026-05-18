@@ -58,3 +58,24 @@ func TestExistingTableCompatible(t *testing.T) {
 		}
 	}
 }
+
+func TestExistingTableCompatibilityCanCollectNotNullColumns(t *testing.T) {
+	columns, err := validateExistingTableCompatibility(
+		[]*columnDesc{
+			{columnName: "time", dataType: "timestamp with time zone", isNullable: "NO"},
+			{columnName: "value", dataType: "text", isNullable: "NO"},
+		},
+		[]*idrf.Column{
+			{Name: "time", DataType: idrf.IDRFTimestamptz},
+			{Name: "value", DataType: idrf.IDRFString},
+		},
+		"time",
+		true,
+	)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(columns) != 1 || columns[0] != "value" {
+		t.Fatalf("expected value column, got %v", columns)
+	}
+}

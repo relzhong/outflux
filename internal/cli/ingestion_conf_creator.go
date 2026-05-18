@@ -27,5 +27,6 @@ func (s *defaultIngestionConfCreator) create(pipeID, targetTable string, conf *M
 		Schema:                  conf.OutputSchema,
 		ChunkTimeInterval:       conf.ChunkTimeInterval,
 		TargetTable:             targetTable,
+		ValidatedNotNullColumns: conf.ValidateNotNullSourceData,
 	}
 }

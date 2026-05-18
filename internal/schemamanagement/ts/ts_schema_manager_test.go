@@ -200,6 +200,30 @@ func TestNewTsSchemaManager(t *testing.T) {
 	assert.Equal(t, "1m", creator.chunkTimeInterval)
 }
 
+func TestExistingNonNullableColumns(t *testing.T) {
+	dataSet := &idrf.DataSet{
+		DataSetName: "ds",
+		Columns: []*idrf.Column{
+			{Name: "time", DataType: idrf.IDRFTimestamptz},
+			{Name: "a", DataType: idrf.IDRFString},
+		},
+		TimeColumn: "time",
+	}
+	manager := &TSSchemaManager{
+		explorer: onFetchColWith([]*columnDesc{
+			{"time", "timestamp with time zone", "NO"},
+			{"a", "text", "NO"},
+		}),
+	}
+	columns, err := manager.ExistingNonNullableColumns(dataSet, schemaconfig.ValidateOnly)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(columns) != 1 || columns[0] != "a" {
+		t.Fatalf("expected [a], got %v", columns)
+	}
+}
+
 func errorOnTableExistsExplorer() schemaExplorer {
 	errorTableFinder := &mocker{tableExistsR: false, tableExistsErr: fmt.Errorf("error")}
 	return newSchemaExplorerWith(errorTableFinder, nil, nil, nil, nil)

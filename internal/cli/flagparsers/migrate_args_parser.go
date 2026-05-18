@@ -85,6 +85,7 @@ func FlagsToMigrateConfig(flags *pflag.FlagSet, args []string) (*cli.ConnectionC
 	if err != nil {
 		return nil, nil, err
 	}
+	validateNotNullSourceData, _ := flags.GetBool(ValidateNotNullSourceData)
 	migrateArgs := &cli.MigrationConfig{
 		RetentionPolicy:                      rp,
 		OutputSchemaStrategy:                 strategy,
@@ -106,6 +107,7 @@ func FlagsToMigrateConfig(flags *pflag.FlagSet, args []string) (*cli.ConnectionC
 		OnConflictConvertIntToFloat:          intToFloat,
 		ChunkTimeInterval:                    chunkTimeInterval,
 		TableMappings:                        tableMappings,
+		ValidateNotNullSourceData:            validateNotNullSourceData,
 	}
 
 	return connectionArgs, migrateArgs, nil

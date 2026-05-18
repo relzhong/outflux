@@ -57,6 +57,7 @@ func initMigrateCmd() *cobra.Command {
 	migrateCmd.PersistentFlags().Bool(flagparsers.MultishardIntFloatCast, flagparsers.DefaultMultishardIntFloatCast, "If a field is Int64 in one shard, and Float64 in another, with this flag it will be cast to Float64 despite possible data loss")
 	migrateCmd.PersistentFlags().String(flagparsers.ChunkTimeIntervalFlag, flagparsers.DefaultChunkTimeInterval, "chunk_time_interval of the hypertables created by Outflux")
 	migrateCmd.PersistentFlags().StringArray(flagparsers.TableMapFlag, nil, "Map an InfluxDB measurement to a PostgreSQL table name. May be repeated: --table-map source=target")
+	migrateCmd.PersistentFlags().Bool(flagparsers.ValidateNotNullSourceData, false, "Validate the selected source rows before accepting existing non-time NOT NULL target columns")
 
 	return migrateCmd
 }
@@ -80,6 +81,11 @@ func migrate(app *appContext, connArgs *cli.ConnectionConfig, args *cli.Migratio
 	}
 	if err := validateTableMappings(connArgs.InputMeasures, args.TableMappings); err != nil {
 		return err
+	}
+	if args.ValidateNotNullSourceData {
+		if err := validateNotNullSourceData(app, connArgs, args); err != nil {
+			return err
+		}
 	}
 
 	startTime := time.Now()

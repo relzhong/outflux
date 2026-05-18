@@ -7,6 +7,7 @@ import (
 	"github.com/timescale/outflux/internal/idrf"
 	"github.com/timescale/outflux/internal/ingestion/config"
 	"github.com/timescale/outflux/internal/schemamanagement"
+	"github.com/timescale/outflux/internal/schemamanagement/schemaconfig"
 )
 
 // TSIngestor implements a TimescaleDB ingestor
@@ -37,6 +38,13 @@ func (i *TSIngestor) Prepare(bundle *idrf.Bundle) error {
 	i.cachedBundle = &idrf.Bundle{
 		DataDef:  dataDef,
 		DataChan: bundle.DataChan,
+	}
+	if i.Config.ValidatedNotNullColumns {
+		if preparer, ok := i.SchemaManager.(interface {
+			PrepareDataSetWithValidatedNotNull(*idrf.DataSet, schemaconfig.SchemaStrategy) error
+		}); ok {
+			return preparer.PrepareDataSetWithValidatedNotNull(dataDef, i.Config.SchemaStrategy)
+		}
 	}
 	return i.SchemaManager.PrepareDataSet(dataDef, i.Config.SchemaStrategy)
 }

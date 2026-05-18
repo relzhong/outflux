@@ -41,6 +41,32 @@ func (sm *TSSchemaManager) FetchDataSet(dataSetIdentifier string) (*idrf.DataSet
 
 // PrepareDataSet prepares a table in TimeScale compatible with the provided dataSet
 func (sm *TSSchemaManager) PrepareDataSet(dataSet *idrf.DataSet, strategy schemaconfig.SchemaStrategy) error {
+	return sm.prepareDataSet(dataSet, strategy, false)
+}
+
+func (sm *TSSchemaManager) PrepareDataSetWithValidatedNotNull(dataSet *idrf.DataSet, strategy schemaconfig.SchemaStrategy) error {
+	return sm.prepareDataSet(dataSet, strategy, true)
+}
+
+func (sm *TSSchemaManager) ExistingNonNullableColumns(dataSet *idrf.DataSet, strategy schemaconfig.SchemaStrategy) ([]string, error) {
+	if strategy != schemaconfig.ValidateOnly && strategy != schemaconfig.CreateIfMissing {
+		return nil, nil
+	}
+	tableExists, err := sm.explorer.tableExists(sm.dbConn, sm.schema, dataSet.DataSetName)
+	if err != nil {
+		return nil, fmt.Errorf("could not check if table exists for non-null validation. %v", err)
+	}
+	if !tableExists {
+		return nil, nil
+	}
+	existingTableColumns, err := sm.explorer.fetchTableColumns(sm.dbConn, sm.schema, dataSet.DataSetName)
+	if err != nil {
+		return nil, fmt.Errorf("could not retreive column information for table %s", dataSet.DataSetName)
+	}
+	return validateExistingTableCompatibility(existingTableColumns, dataSet.Columns, dataSet.TimeColumn, true)
+}
+
+func (sm *TSSchemaManager) prepareDataSet(dataSet *idrf.DataSet, strategy schemaconfig.SchemaStrategy, allowNonTimeNotNull bool) error {
 	log.Printf("Selected Schema Strategy: %s", strategy.String())
 	tableExists, err := sm.explorer.tableExists(sm.dbConn, sm.schema, dataSet.DataSetName)
 	if err != nil {
@@ -54,9 +80,9 @@ func (sm *TSSchemaManager) PrepareDataSet(dataSet *idrf.DataSet, strategy schema
 	case schemaconfig.DropCascadeAndCreate:
 		preparationError = sm.prepareWithDropStrategy(dataSet, strategy, tableExists)
 	case schemaconfig.CreateIfMissing:
-		preparationError = sm.prepareWithCreateIfMissing(dataSet, tableExists)
+		preparationError = sm.prepareWithCreateIfMissing(dataSet, tableExists, allowNonTimeNotNull)
 	case schemaconfig.ValidateOnly:
-		preparationError = sm.validateOnly(dataSet, tableExists)
+		preparationError = sm.validateOnly(dataSet, tableExists, allowNonTimeNotNull)
 	default:
 		panic("unexpected type")
 	}
@@ -69,13 +95,13 @@ func (sm *TSSchemaManager) PrepareDataSet(dataSet *idrf.DataSet, strategy schema
 	return nil
 }
 
-func (sm *TSSchemaManager) validateOnly(dataSet *idrf.DataSet, tableExists bool) error {
+func (sm *TSSchemaManager) validateOnly(dataSet *idrf.DataSet, tableExists bool, allowNonTimeNotNull bool) error {
 	if !tableExists {
 		return fmt.Errorf("validate only strategy selected, but '%s' doesn't exist", dataSet.DataSetName)
 	}
 
 	log.Printf("Table %s exists. Proceeding only with validation", dataSet.DataSetName)
-	if err := sm.validateColumns(dataSet); err != nil {
+	if err := sm.validateColumns(dataSet, allowNonTimeNotNull); err != nil {
 		return err
 	}
 
@@ -111,13 +137,13 @@ func (sm *TSSchemaManager) prepareWithDropStrategy(dataSet *idrf.DataSet, strate
 	return sm.creator.CreateTable(sm.dbConn, dataSet)
 }
 
-func (sm *TSSchemaManager) prepareWithCreateIfMissing(dataSet *idrf.DataSet, tableExists bool) error {
+func (sm *TSSchemaManager) prepareWithCreateIfMissing(dataSet *idrf.DataSet, tableExists bool, allowNonTimeNotNull bool) error {
 	if !tableExists {
 		log.Printf("CreateIfMissing strategy: Table %s does not exist. Creating", dataSet.DataSetName)
 		return sm.creator.CreateTable(sm.dbConn, dataSet)
 	}
 
-	if err := sm.validateColumns(dataSet); err != nil {
+	if err := sm.validateColumns(dataSet, allowNonTimeNotNull); err != nil {
 		return err
 	}
 
@@ -147,13 +173,13 @@ func (sm *TSSchemaManager) prepareWithCreateIfMissing(dataSet *idrf.DataSet, tab
 
 }
 
-func (sm *TSSchemaManager) validateColumns(dataSet *idrf.DataSet) error {
+func (sm *TSSchemaManager) validateColumns(dataSet *idrf.DataSet, allowNonTimeNotNull bool) error {
 	existingTableColumns, err := sm.explorer.fetchTableColumns(sm.dbConn, sm.schema, dataSet.DataSetName)
 	if err != nil {
 		return fmt.Errorf("could not retreive column information for table %s", dataSet.DataSetName)
 	}
 
-	err = isExistingTableCompatible(existingTableColumns, dataSet.Columns, dataSet.TimeColumn)
+	_, err = validateExistingTableCompatibility(existingTableColumns, dataSet.Columns, dataSet.TimeColumn, allowNonTimeNotNull)
 	if err != nil {
 		return fmt.Errorf("existing table in target db is not compatible with required. %v", err)
 	}

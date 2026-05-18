@@ -173,6 +173,7 @@ Available flags are:
 | fields-as-json   | bool    | false                 | If this flag is set to true, then the Fields of the influx measures being exported will be combined into a single JSONb column in Timescale |
 | fields-column    | string  | fields                | When `fields-as-json` is set, this column specifies the name of the JSON column for the fields |
 | table-map        | string[]|                       | Map an InfluxDB measurement to a PostgreSQL table name. May be repeated, e.g. `--table-map cpu=computer_cpu` |
+| validate-not-null-source-data | bool | false         | Before migrating into an existing target table, validate selected source rows so non-time `NOT NULL` target columns can be accepted |
 | multishard-int-float-cast | bool    | false                 | If a field is Int64 in one shard, and Float64 in another, with this flag it will be cast to Float64 despite possible data loss |
 | quiet                      | bool    | false                 | If specified will suppress any log to STDOUT |
 

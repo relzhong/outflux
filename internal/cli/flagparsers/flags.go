@@ -32,6 +32,7 @@ const (
 	FieldsColumnFlag            = "fields-column"
 	ChunkTimeIntervalFlag       = "chunk-time-interval"
 	TableMapFlag                = "table-map"
+	ValidateNotNullSourceData   = "validate-not-null-source-data"
 	// InfluxDB can have different data types for the same field accross
 	// different shards. If a field is discovered with an Int64 and a Float64 type
 	// and this flag is TRUE it will allow the field to be converted to float,

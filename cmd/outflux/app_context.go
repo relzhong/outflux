@@ -21,6 +21,7 @@ type appContext struct {
 	extractorService      extraction.ExtractorService
 	schemaManagerService  schemamanagement.SchemaManagerService
 	transformerService    cli.TransformerService
+	notNullValidator      cli.NotNullValidator
 }
 
 func initAppContext() *appContext {
@@ -36,6 +37,7 @@ func initAppContext() *appContext {
 
 	transformerService := cli.NewTransformerService(influxTagExplorer, influxFieldExplorer)
 	pipeService := cli.NewPipeService(ingestorService, extractorService, transformerService)
+	notNullValidator := cli.NewNotNullValidator(extractorService, transformerService)
 	return &appContext{
 		ics:                   ics,
 		tscs:                  tscs,
@@ -44,6 +46,7 @@ func initAppContext() *appContext {
 		extractorService:      extractorService,
 		schemaManagerService:  schemaManagerService,
 		transformerService:    transformerService,
+		notNullValidator:      notNullValidator,
 		influxTagExplorer:     influxTagExplorer,
 		influxFieldExplorer:   influxFieldExplorer,
 		influxMeasureExplorer: influxMeasureExplorer,

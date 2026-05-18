@@ -28,4 +28,5 @@ type MigrationConfig struct {
 	OnConflictConvertIntToFloat          bool
 	ChunkTimeInterval                    string
 	TableMappings                        map[string]string
+	ValidateNotNullSourceData            bool
 }
