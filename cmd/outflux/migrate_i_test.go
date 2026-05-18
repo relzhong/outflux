@@ -1,3 +1,4 @@
+//go:build integration
 // +build integration
 
 package main
@@ -68,6 +69,52 @@ func TestMigrateSingleValue(t *testing.T) {
 
 	if time.Before(start) || field1 != value {
 		t.Errorf("expected time > %v and field1=%d\ngot: time %s, field1=%d", start, value, time, field1)
+	}
+}
+
+func TestMigrateMappedOutputTable(t *testing.T) {
+	start := time.Now().UTC()
+	db := "test_mapped_output_table"
+	measure := "cpu"
+	targetTable := "computer_cpu"
+	field := "field1"
+	value := 1
+	tags := make(map[string]string)
+	fieldValues := map[string]interface{}{field: value}
+	if err := testutils.PrepareServersForITest(db); err != nil {
+		t.Fatalf("could not prepare servers: %v", err)
+	}
+	defer testutils.ClearServersAfterITest(db)
+	if err := testutils.CreateInfluxMeasure(db, measure, []*map[string]string{&tags}, []*map[string]interface{}{&fieldValues}); err != nil {
+		t.Fatalf("could not prepare influx measurement: %v", err)
+	}
+
+	connConf, config := defaultConfig(db, measure)
+	config.TableMappings = map[string]string{measure: targetTable}
+	if err := migrate(initAppContext(), connConf, config); err != nil {
+		t.Fatal(err)
+	}
+
+	dbConn, err := testutils.OpenTSConn(db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer dbConn.Close()
+	rows, err := dbConn.Query("SELECT * FROM " + targetTable)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	var rowTime time.Time
+	var fieldValue int
+	if !rows.Next() {
+		t.Fatal("couldn't check state of TS DB")
+	}
+	if err := rows.Scan(&rowTime, &fieldValue); err != nil {
+		t.Fatal(err)
+	}
+	if rowTime.Before(start) || fieldValue != value {
+		t.Errorf("expected time > %v and field1=%d\ngot: time %s, field1=%d", start, value, rowTime, fieldValue)
 	}
 }
 

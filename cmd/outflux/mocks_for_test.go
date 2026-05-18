@@ -19,7 +19,7 @@ type mockService struct {
 	inflSchemMngr schemamanagement.SchemaManager
 }
 
-func (m *mockService) Create(infConn influx.Client, tsConn connections.PgxWrap, measure, inputDb string, conf *cli.MigrationConfig) (pipeline.Pipe, error) {
+func (m *mockService) Create(infConn influx.Client, tsConn connections.PgxWrap, measure, targetTable, inputDb string, conf *cli.MigrationConfig) (pipeline.Pipe, error) {
 	return m.pipe, m.pipeErr
 }
 

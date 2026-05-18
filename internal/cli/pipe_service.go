@@ -17,7 +17,7 @@ const (
 
 // PipeService defines methods for creating pipelines
 type PipeService interface {
-	Create(infConn influx.Client, pgConn connections.PgxWrap, measure, inputDb string, conf *MigrationConfig) (pipeline.Pipe, error)
+	Create(infConn influx.Client, pgConn connections.PgxWrap, measure, targetTable, inputDb string, conf *MigrationConfig) (pipeline.Pipe, error)
 }
 
 type pipeService struct {
@@ -42,10 +42,10 @@ func NewPipeService(
 	}
 }
 
-func (s *pipeService) Create(infConn influx.Client, tsConn connections.PgxWrap, measure, inputDb string, conf *MigrationConfig) (pipeline.Pipe, error) {
+func (s *pipeService) Create(infConn influx.Client, tsConn connections.PgxWrap, measure, targetTable, inputDb string, conf *MigrationConfig) (pipeline.Pipe, error) {
 	pipeID := fmt.Sprintf(pipeIDTemplate, measure)
 	extractionConf := s.extractionConfCreator.create(pipeID, inputDb, measure, conf)
-	ingestionConf := s.ingestionConfCreator.create(pipeID, conf)
+	ingestionConf := s.ingestionConfCreator.create(pipeID, targetTable, conf)
 	extractor, ingestor, err := s.createElements(infConn, tsConn, extractionConf, ingestionConf)
 	if err != nil {
 		return nil, fmt.Errorf("%s: could not create extractor and ingestor:\n%v", pipeID, err)

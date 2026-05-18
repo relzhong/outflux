@@ -45,6 +45,7 @@ func initSchemaTransferCmd() *cobra.Command {
 	schemaTransferCmd.PersistentFlags().String(flagparsers.OutputSchemaFlag, flagparsers.DefaultOutputSchema, "The schema of the output database that the data will be inserted into")
 	schemaTransferCmd.PersistentFlags().Bool(flagparsers.MultishardIntFloatCast, flagparsers.DefaultMultishardIntFloatCast, "If a field is Int64 in one shard, and Float64 in another, with this flag it will be cast to Float64 despite possible data loss")
 	schemaTransferCmd.PersistentFlags().String(flagparsers.ChunkTimeIntervalFlag, flagparsers.DefaultChunkTimeInterval, "chunk_time_interval of the hypertables created by Outflux")
+	schemaTransferCmd.PersistentFlags().StringArray(flagparsers.TableMapFlag, nil, "Map an InfluxDB measurement to a PostgreSQL table name. May be repeated: --table-map source=target")
 	return schemaTransferCmd
 }
 
@@ -79,9 +80,12 @@ func transferSchema(app *appContext, connArgs *cli.ConnectionConfig, args *cli.M
 			return nil
 		}
 	}
+	if err := validateTableMappings(connArgs.InputMeasures, args.TableMappings); err != nil {
+		return err
+	}
 
 	for _, measure := range connArgs.InputMeasures {
-		err := transfer(app, connArgs.InputDb, args, infConn, pgConn, measure)
+		err := transfer(app, connArgs.InputDb, args, infConn, pgConn, measure, targetTableForMeasure(measure, args.TableMappings))
 		if err != nil {
 			return fmt.Errorf("could not transfer schema for measurement '%s'\n%v", measure, err)
 		}
@@ -103,9 +107,10 @@ func transfer(
 	args *cli.MigrationConfig,
 	infConn influx.Client,
 	pgConn connections.PgxWrap,
-	measure string) error {
+	measure string,
+	targetTable string) error {
 
-	pipe, err := app.pipeService.Create(infConn, pgConn, measure, inputDb, args)
+	pipe, err := app.pipeService.Create(infConn, pgConn, measure, targetTable, inputDb, args)
 	if err != nil {
 		return fmt.Errorf("could not create execution pipeline for measure '%s'\n%v", measure, err)
 	}

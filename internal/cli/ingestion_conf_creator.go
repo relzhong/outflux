@@ -11,13 +11,13 @@ const (
 )
 
 type ingestionConfCreator interface {
-	create(pipeID string, conf *MigrationConfig) *config.IngestorConfig
+	create(pipeID, targetTable string, conf *MigrationConfig) *config.IngestorConfig
 }
 
 type defaultIngestionConfCreator struct {
 }
 
-func (s *defaultIngestionConfCreator) create(pipeID string, conf *MigrationConfig) *config.IngestorConfig {
+func (s *defaultIngestionConfCreator) create(pipeID, targetTable string, conf *MigrationConfig) *config.IngestorConfig {
 	return &config.IngestorConfig{
 		IngestorID:              fmt.Sprintf(ingestorIDTemplate, pipeID),
 		BatchSize:               conf.BatchSize,
@@ -26,5 +26,6 @@ func (s *defaultIngestionConfCreator) create(pipeID string, conf *MigrationConfi
 		SchemaStrategy:          conf.OutputSchemaStrategy,
 		Schema:                  conf.OutputSchema,
 		ChunkTimeInterval:       conf.ChunkTimeInterval,
+		TargetTable:             targetTable,
 	}
 }

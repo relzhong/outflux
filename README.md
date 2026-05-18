@@ -122,6 +122,7 @@ Available flags for schema-transfer are:
 | tags-column               | string  | tags                  | When `tags-as-json` is set, this column specifies the name of the JSON column for the tags |
 | fields-as-json            | bool    | false                 | If this flag is set to true, then the Fields of the influx measures being exported will be combined into a single JSONb column in Timescale |
 | fields-column             | string  | fields                | When `fields-as-json` is set, this column specifies the name of the JSON column for the fields |
+| table-map                 | string[]|                       | Map an InfluxDB measurement to a PostgreSQL table name. May be repeated, e.g. `--table-map cpu=computer_cpu` |
 | multishard-int-float-cast | bool    | false                 | If a field is Int64 in one shard, and Float64 in another, with this flag it will be cast to Float64 despite possible data loss |
 | quiet                     | bool    | false                 | If specified will suppress any log to STDOUT |
 
@@ -171,6 +172,7 @@ Available flags are:
 | tags-column      | string  | tags                  | When `tags-as-json` is set, this column specifies the name of the JSON column for the tags |
 | fields-as-json   | bool    | false                 | If this flag is set to true, then the Fields of the influx measures being exported will be combined into a single JSONb column in Timescale |
 | fields-column    | string  | fields                | When `fields-as-json` is set, this column specifies the name of the JSON column for the fields |
+| table-map        | string[]|                       | Map an InfluxDB measurement to a PostgreSQL table name. May be repeated, e.g. `--table-map cpu=computer_cpu` |
 | multishard-int-float-cast | bool    | false                 | If a field is Int64 in one shard, and Float64 in another, with this flag it will be cast to Float64 despite possible data loss |
 | quiet                      | bool    | false                 | If specified will suppress any log to STDOUT |
 
@@ -214,6 +216,19 @@ $ ./outflux migrate benchmark cpu mem \
 > --input-pass=test \
 > --limit=1000000 \
 > --from=2019-01-01T09:00:00Z
+```
+
+* Export measurement `cpu` into PostgreSQL table `computer_cpu`
+```bash
+$ outflux migrate benchmark cpu \
+> --table-map cpu=computer_cpu
+```
+
+* Export multiple measurements into explicitly named PostgreSQL tables
+```bash
+$ outflux migrate benchmark cpu mem \
+> --table-map cpu=computer_cpu \
+> --table-map mem=computer_mem
 ```
 
 

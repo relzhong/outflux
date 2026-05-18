@@ -56,6 +56,7 @@ func initMigrateCmd() *cobra.Command {
 	migrateCmd.PersistentFlags().String(flagparsers.OutputSchemaFlag, flagparsers.DefaultOutputSchema, "The schema of the output database that the data will be inserted into")
 	migrateCmd.PersistentFlags().Bool(flagparsers.MultishardIntFloatCast, flagparsers.DefaultMultishardIntFloatCast, "If a field is Int64 in one shard, and Float64 in another, with this flag it will be cast to Float64 despite possible data loss")
 	migrateCmd.PersistentFlags().String(flagparsers.ChunkTimeIntervalFlag, flagparsers.DefaultChunkTimeInterval, "chunk_time_interval of the hypertables created by Outflux")
+	migrateCmd.PersistentFlags().StringArray(flagparsers.TableMapFlag, nil, "Map an InfluxDB measurement to a PostgreSQL table name. May be repeated: --table-map source=target")
 
 	return migrateCmd
 }
@@ -77,6 +78,9 @@ func migrate(app *appContext, connArgs *cli.ConnectionConfig, args *cli.Migratio
 			return fmt.Errorf("could not discover the available measures for the input db '%s'", connArgs.InputDb)
 		}
 	}
+	if err := validateTableMappings(connArgs.InputMeasures, args.TableMappings); err != nil {
+		return err
+	}
 
 	startTime := time.Now()
 	pipelineSemaphore := semaphore.NewWeighted(int64(args.MaxParallel))
@@ -85,7 +89,7 @@ func migrate(app *appContext, connArgs *cli.ConnectionConfig, args *cli.Migratio
 
 	// schedule all pipelines, as soon a value in the semaphore is available, execution will start
 	for i, measure := range connArgs.InputMeasures {
-		go pipeRoutine(ctx, pipelineSemaphore, app, connArgs, args, measure, pipeChannels[i])
+		go pipeRoutine(ctx, pipelineSemaphore, app, connArgs, args, measure, targetTableForMeasure(measure, args.TableMappings), pipeChannels[i])
 	}
 
 	log.Println("All pipelines scheduled")
@@ -116,6 +120,7 @@ func pipeRoutine(
 	connArgs *cli.ConnectionConfig,
 	args *cli.MigrationConfig,
 	measure string,
+	targetTable string,
 	pipeChannel chan error) {
 	_ = semaphore.Acquire(ctx, 1)
 
@@ -127,7 +132,7 @@ func pipeRoutine(
 	}
 	defer infConn.Close()
 	defer pgConn.Close()
-	pipe, err := app.pipeService.Create(infConn, pgConn, measure, connArgs.InputDb, args)
+	pipe, err := app.pipeService.Create(infConn, pgConn, measure, targetTable, connArgs.InputDb, args)
 	if err != nil {
 		pipeChannel <- fmt.Errorf("could not create execution pipeline for measure '%s'\n%v", measure, err)
 		return

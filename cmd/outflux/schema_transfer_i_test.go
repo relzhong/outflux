@@ -1,3 +1,4 @@
+//go:build integration
 // +build integration
 
 package main
@@ -74,6 +75,60 @@ func TestSchemaTransfer(t *testing.T) {
 			t.Errorf("expected no rows in the output database, %d found", count)
 		}
 		rows.Close()
+	}
+}
+
+func TestSchemaTransferMappedOutputTable(t *testing.T) {
+	db := "test_schema_transfer_mapped_output"
+	measure := "cpu"
+	targetTable := "computer_cpu"
+	field := "field1"
+	value := 1
+	tags := make(map[string]string)
+	fieldValues := map[string]interface{}{field: value}
+	if err := testutils.PrepareServersForITest(db); err != nil {
+		t.Fatalf("could not prepare servers: %v", err)
+	}
+	defer testutils.ClearServersAfterITest(db)
+	if err := testutils.CreateInfluxMeasure(db, measure, []*map[string]string{&tags}, []*map[string]interface{}{&fieldValues}); err != nil {
+		t.Fatalf("could not create measure: %v", err)
+	}
+
+	connConf := &cli.ConnectionConfig{
+		InputHost:          testutils.InfluxHost,
+		InputDb:            db,
+		InputMeasures:      []string{measure},
+		OutputDbConnString: fmt.Sprintf(testutils.TsConnStringTemplate, db),
+	}
+	config := &cli.MigrationConfig{
+		ChunkSize:            1,
+		OutputSchemaStrategy: schemaconfig.DropAndCreate,
+		SchemaOnly:           true,
+		TableMappings:        map[string]string{measure: targetTable},
+	}
+	if err := transferSchema(initAppContext(), connConf, config); err != nil {
+		t.Fatal(err)
+	}
+
+	dbConn, err := testutils.OpenTSConn(db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer dbConn.Close()
+	rows, err := dbConn.Query(fmt.Sprintf(`SELECT count(*) FROM "%s"`, targetTable))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	var count int
+	if !rows.Next() {
+		t.Fatal("couldn't check state of TS DB")
+	}
+	if err := rows.Scan(&count); err != nil {
+		t.Fatal(err)
+	}
+	if count != 0 {
+		t.Errorf("expected no rows in the output database, %d found", count)
 	}
 }
 

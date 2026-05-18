@@ -1,0 +1,85 @@
+name: release
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout pushed ref
+        if: github.event_name == 'push'
+        uses: actions/checkout@v4
+
+      - name: Checkout main for nightly
+        if: github.event_name != 'push'
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Resolve release metadata
+        id: meta
+        shell: bash
+        run: |
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            echo "tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+            echo "title=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=nightly" >> "$GITHUB_OUTPUT"
+            echo "title=Nightly build" >> "$GITHUB_OUTPUT"
+            echo "prerelease=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build Linux x86_64 artifact
+        shell: bash
+        run: |
+          mkdir -p dist/package
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o dist/package/outflux ./cmd/outflux
+          tar -C dist/package -czf dist/outflux_${{ steps.meta.outputs.tag }}_Linux_x86_64.tar.gz outflux
+          sha256sum dist/outflux_${{ steps.meta.outputs.tag }}_Linux_x86_64.tar.gz > dist/checksums.txt
+
+      - name: Publish tagged release
+        if: steps.meta.outputs.tag != 'nightly'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          gh release create "${{ steps.meta.outputs.tag }}" \
+            dist/outflux_${{ steps.meta.outputs.tag }}_Linux_x86_64.tar.gz \
+            dist/checksums.txt \
+            --title "${{ steps.meta.outputs.title }}" \
+            --generate-notes
+
+      - name: Publish nightly release
+        if: steps.meta.outputs.tag == 'nightly'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          gh release delete nightly --yes --cleanup-tag || true
+          git tag -f nightly "${{ steps.meta.outputs.sha }}"
+          git push origin refs/tags/nightly --force
+          gh release create nightly \
+            dist/outflux_nightly_Linux_x86_64.tar.gz \
+            dist/checksums.txt \
+            --title "${{ steps.meta.outputs.title }}" \
+            --prerelease \
+            --notes "Automated nightly build from main at ${{ steps.meta.outputs.sha }}."

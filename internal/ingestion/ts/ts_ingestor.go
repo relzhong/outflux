@@ -25,8 +25,20 @@ func (i *TSIngestor) ID() string {
 
 // Prepare creates or validates the output tables in Timescale
 func (i *TSIngestor) Prepare(bundle *idrf.Bundle) error {
-	i.cachedBundle = bundle
-	return i.SchemaManager.PrepareDataSet(bundle.DataDef, i.Config.SchemaStrategy)
+	dataDef := bundle.DataDef
+	if i.Config.TargetTable != "" && i.Config.TargetTable != dataDef.DataSetName {
+		var err error
+		dataDef, err = idrf.NewDataSet(i.Config.TargetTable, dataDef.Columns, dataDef.TimeColumn)
+		if err != nil {
+			return err
+		}
+	}
+
+	i.cachedBundle = &idrf.Bundle{
+		DataDef:  dataDef,
+		DataChan: bundle.DataChan,
+	}
+	return i.SchemaManager.PrepareDataSet(dataDef, i.Config.SchemaStrategy)
 }
 
 // Start consumes a data channel of idrf.Row(s) and inserts them into a TimescaleDB hypertable
