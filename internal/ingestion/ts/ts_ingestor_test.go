@@ -32,6 +32,22 @@ func TestPrepareUsesTargetTable(t *testing.T) {
 	}
 }
 
+func TestPrepareCanSkipSchemaPreparation(t *testing.T) {
+	timeColumn, _ := idrf.NewColumn("time", idrf.IDRFTimestamptz)
+	dataSet, _ := idrf.NewDataSet("cpu", []*idrf.Column{timeColumn}, "time")
+	schemaManager := &recordingSchemaManager{}
+	ingestor := &TSIngestor{
+		Config:        &config.IngestorConfig{SkipSchemaPreparation: true},
+		SchemaManager: schemaManager,
+	}
+	if err := ingestor.Prepare(&idrf.Bundle{DataDef: dataSet, DataChan: make(chan idrf.Row)}); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if schemaManager.preparedDataSet != nil {
+		t.Fatal("expected schema preparation to be skipped")
+	}
+}
+
 type recordingSchemaManager struct {
 	preparedDataSet *idrf.DataSet
 }

@@ -39,6 +39,9 @@ func (i *TSIngestor) Prepare(bundle *idrf.Bundle) error {
 		DataDef:  dataDef,
 		DataChan: bundle.DataChan,
 	}
+	if i.Config.SkipSchemaPreparation {
+		return nil
+	}
 	if i.Config.ValidatedNotNullColumns {
 		if preparer, ok := i.SchemaManager.(interface {
 			PrepareDataSetWithValidatedNotNull(*idrf.DataSet, schemaconfig.SchemaStrategy) error

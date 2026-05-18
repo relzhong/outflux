@@ -174,8 +174,9 @@ Available flags are:
 | fields-column    | string  | fields                | When `fields-as-json` is set, this column specifies the name of the JSON column for the fields |
 | table-map        | string[]|                       | Map an InfluxDB measurement to a PostgreSQL table name. May be repeated, e.g. `--table-map cpu=computer_cpu` |
 | validate-not-null-source-data | bool | false         | Before migrating into an existing target table, validate selected source rows so non-time `NOT NULL` target columns can be accepted. Validation walks InfluxDB shard-group windows one at a time and cannot be combined with `--limit`. |
-| preflight-shard-pause | string |                    | Optional pause between `validate-not-null-source-data` windows, for example `500ms`. |
-| preflight-max-window | string |                     | Optional maximum window size for `validate-not-null-source-data`; shard groups larger than this are split further, for example `24h`. |
+| migrate-by-shard-group | bool | false              | Migrate one shard-aligned window at a time instead of scanning the full selected range at once. Cannot be combined with `--limit`; `CommitOnEnd` commits once per window in this mode. |
+| window-pause | string |                            | Optional pause between shard windows used by windowed migration and source-data validation, for example `500ms`. |
+| max-window | string |                               | Optional maximum shard window size; larger shard groups are split further, for example `24h`. |
 | multishard-int-float-cast | bool    | false                 | If a field is Int64 in one shard, and Float64 in another, with this flag it will be cast to Float64 despite possible data loss |
 | quiet                      | bool    | false                 | If specified will suppress any log to STDOUT |
 
@@ -238,8 +239,16 @@ $ outflux migrate benchmark cpu mem \
 ```bash
 $ outflux migrate benchmark cpu \
 > --validate-not-null-source-data \
-> --preflight-max-window=24h \
-> --preflight-shard-pause=500ms
+> --max-window=24h \
+> --window-pause=500ms
+```
+
+* Migrate one shard-aligned window at a time to reduce sustained source pressure during large historical exports
+```bash
+$ outflux migrate benchmark cpu \
+> --migrate-by-shard-group \
+> --max-window=24h \
+> --window-pause=500ms
 ```
 
 

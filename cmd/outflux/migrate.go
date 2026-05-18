@@ -12,6 +12,7 @@ import (
 	"github.com/timescale/outflux/internal/cli"
 	"github.com/timescale/outflux/internal/cli/flagparsers"
 	"github.com/timescale/outflux/internal/connections"
+	"github.com/timescale/outflux/internal/pipeline"
 	"golang.org/x/sync/semaphore"
 )
 
@@ -58,8 +59,9 @@ func initMigrateCmd() *cobra.Command {
 	migrateCmd.PersistentFlags().String(flagparsers.ChunkTimeIntervalFlag, flagparsers.DefaultChunkTimeInterval, "chunk_time_interval of the hypertables created by Outflux")
 	migrateCmd.PersistentFlags().StringArray(flagparsers.TableMapFlag, nil, "Map an InfluxDB measurement to a PostgreSQL table name. May be repeated: --table-map source=target")
 	migrateCmd.PersistentFlags().Bool(flagparsers.ValidateNotNullSourceData, false, "Validate the selected source rows before accepting existing non-time NOT NULL target columns")
-	migrateCmd.PersistentFlags().String(flagparsers.PreflightShardPauseFlag, flagparsers.DefaultPreflightShardPause, "Optional pause between non-null preflight windows, e.g. 500ms")
-	migrateCmd.PersistentFlags().String(flagparsers.PreflightMaxWindowFlag, flagparsers.DefaultPreflightMaxWindow, "Optional maximum non-null preflight window size, e.g. 24h")
+	migrateCmd.PersistentFlags().Bool(flagparsers.MigrateByShardGroupFlag, false, "Migrate one shard-aligned window at a time instead of scanning the full selected range at once")
+	migrateCmd.PersistentFlags().String(flagparsers.WindowPauseFlag, flagparsers.DefaultWindowPause, "Optional pause between shard windows, e.g. 500ms")
+	migrateCmd.PersistentFlags().String(flagparsers.MaxWindowFlag, flagparsers.DefaultMaxWindow, "Optional maximum shard window size, e.g. 24h")
 
 	return migrateCmd
 }
@@ -84,8 +86,23 @@ func migrate(app *appContext, connArgs *cli.ConnectionConfig, args *cli.Migratio
 	if err := validateTableMappings(connArgs.InputMeasures, args.TableMappings); err != nil {
 		return err
 	}
+	var sharedWindows []migrationWindow
+	if args.MigrateByShardGroup {
+		influxConn, err := app.ics.NewConnection(influxConnParams(connArgs))
+		if err != nil {
+			return fmt.Errorf("could not open connection to Influx Server\n%v", err)
+		}
+		sharedWindows, err = buildMigrationWindows(app, influxConn, connArgs.InputDb, args)
+		influxConn.Close()
+		if err != nil {
+			return fmt.Errorf("could not build shard migration windows\n%v", err)
+		}
+		if len(sharedWindows) == 0 {
+			return fmt.Errorf("migrate-by-shard-group requested, but no shard windows matched the selected range")
+		}
+	}
 	if args.ValidateNotNullSourceData {
-		if err := validateNotNullSourceData(app, connArgs, args); err != nil {
+		if err := validateNotNullSourceData(app, connArgs, args, sharedWindows); err != nil {
 			return err
 		}
 	}
@@ -97,7 +114,7 @@ func migrate(app *appContext, connArgs *cli.ConnectionConfig, args *cli.Migratio
 
 	// schedule all pipelines, as soon a value in the semaphore is available, execution will start
 	for i, measure := range connArgs.InputMeasures {
-		go pipeRoutine(ctx, pipelineSemaphore, app, connArgs, args, measure, targetTableForMeasure(measure, args.TableMappings), pipeChannels[i])
+		go pipeRoutine(ctx, pipelineSemaphore, app, connArgs, args, measure, targetTableForMeasure(measure, args.TableMappings), sharedWindows, pipeChannels[i])
 	}
 
 	log.Println("All pipelines scheduled")
@@ -129,6 +146,7 @@ func pipeRoutine(
 	args *cli.MigrationConfig,
 	measure string,
 	targetTable string,
+	windows []migrationWindow,
 	pipeChannel chan error) {
 	_ = semaphore.Acquire(ctx, 1)
 
@@ -140,21 +158,55 @@ func pipeRoutine(
 	}
 	defer infConn.Close()
 	defer pgConn.Close()
-	pipe, err := app.pipeService.Create(infConn, pgConn, measure, targetTable, connArgs.InputDb, args)
-	if err != nil {
-		pipeChannel <- fmt.Errorf("could not create execution pipeline for measure '%s'\n%v", measure, err)
-		return
+	if args.MigrateByShardGroup {
+		err = runWindowedMigration(app, infConn, pgConn, connArgs.InputDb, args, measure, targetTable, windows)
+	} else {
+		var pipe pipeline.Pipe
+		pipe, err = app.pipeService.Create(infConn, pgConn, measure, targetTable, connArgs.InputDb, args)
+		if err == nil {
+			log.Printf("%s starting execution\n", pipe.ID())
+			err = pipe.Run()
+		}
 	}
-
-	log.Printf("%s starting execution\n", pipe.ID())
-	err = pipe.Run()
 	if err != nil {
-		log.Printf("%s: %v\n", pipe.ID(), err)
+		log.Printf("pipe_%s: %v\n", measure, err)
 		pipeChannel <- err
 	}
 
 	close(pipeChannel)
 	semaphore.Release(1)
+}
+
+func runWindowedMigration(app *appContext, infConn influx.Client, pgConn connections.PgxWrap, inputDb string, args *cli.MigrationConfig, measure, targetTable string, windows []migrationWindow) error {
+	pause, err := parseOptionalDuration(args.WindowPause)
+	if err != nil {
+		return fmt.Errorf("invalid window pause: %v", err)
+	}
+	prepareArgs := *args
+	prepareArgs.SchemaOnly = true
+	preparationPipe, err := app.pipeService.Create(infConn, pgConn, measure, targetTable, inputDb, &prepareArgs)
+	if err != nil {
+		return fmt.Errorf("could not create schema preparation pipeline for measure '%s'\n%v", measure, err)
+	}
+	if err := preparationPipe.Run(); err != nil {
+		return err
+	}
+	for index, window := range windows {
+		windowArgs := applyWindow(args, window)
+		windowArgs.SkipSchemaPreparation = true
+		pipe, err := app.pipeService.Create(infConn, pgConn, measure, targetTable, inputDb, windowArgs)
+		if err != nil {
+			return fmt.Errorf("could not create window pipeline for measure '%s'\n%v", measure, err)
+		}
+		log.Printf("%s starting window %s to %s\n", pipe.ID(), window.From.Format(time.RFC3339), window.To.Format(time.RFC3339))
+		if err := pipe.Run(); err != nil {
+			return err
+		}
+		if pause > 0 && index < len(windows)-1 {
+			time.Sleep(pause)
+		}
+	}
+	return nil
 }
 
 func makePipeChannels(numChannels int) []chan error {

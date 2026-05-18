@@ -86,10 +86,11 @@ func FlagsToMigrateConfig(flags *pflag.FlagSet, args []string) (*cli.ConnectionC
 		return nil, nil, err
 	}
 	validateNotNullSourceData, _ := flags.GetBool(ValidateNotNullSourceData)
-	preflightShardPause, _ := flags.GetString(PreflightShardPauseFlag)
-	preflightMaxWindow, _ := flags.GetString(PreflightMaxWindowFlag)
-	if validateNotNullSourceData && limit > 0 {
-		return nil, nil, fmt.Errorf("'%s' cannot be used with '%s'", ValidateNotNullSourceData, LimitFlag)
+	migrateByShardGroup, _ := flags.GetBool(MigrateByShardGroupFlag)
+	windowPause, _ := flags.GetString(WindowPauseFlag)
+	maxWindow, _ := flags.GetString(MaxWindowFlag)
+	if (validateNotNullSourceData || migrateByShardGroup) && limit > 0 {
+		return nil, nil, fmt.Errorf("'%s' cannot be used with '%s' or '%s'", LimitFlag, ValidateNotNullSourceData, MigrateByShardGroupFlag)
 	}
 	migrateArgs := &cli.MigrationConfig{
 		RetentionPolicy:                      rp,
@@ -113,8 +114,9 @@ func FlagsToMigrateConfig(flags *pflag.FlagSet, args []string) (*cli.ConnectionC
 		ChunkTimeInterval:                    chunkTimeInterval,
 		TableMappings:                        tableMappings,
 		ValidateNotNullSourceData:            validateNotNullSourceData,
-		PreflightShardPause:                  preflightShardPause,
-		PreflightMaxWindow:                   preflightMaxWindow,
+		MigrateByShardGroup:                  migrateByShardGroup,
+		WindowPause:                          windowPause,
+		MaxWindow:                            maxWindow,
 	}
 
 	return connectionArgs, migrateArgs, nil

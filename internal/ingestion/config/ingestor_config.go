@@ -17,6 +17,7 @@ type IngestorConfig struct {
 	ChunkTimeInterval       string
 	TargetTable             string
 	ValidatedNotNullColumns bool
+	SkipSchemaPreparation   bool
 }
 
 // CommitStrategy describes how the ingestor should handle the ingested data
