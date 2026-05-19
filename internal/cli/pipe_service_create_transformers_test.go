@@ -85,11 +85,11 @@ type psctMockService struct {
 	fieldsErr error
 }
 
-func (p *psctMockService) TagsAsJSON(infConn influx.Client, id, db, rp, measure string, resultCol string) (transformation.Transformer, error) {
+func (p *psctMockService) TagsAsJSON(infConn influx.Client, id, db, rp, measure string, resultCol string, skipColumns []string) (transformation.Transformer, error) {
 	return p.tagsT, p.tagsErr
 }
 
-func (p *psctMockService) FieldsAsJSON(infConn influx.Client, id, db, rp, measure string, resultCol string) (transformation.Transformer, error) {
+func (p *psctMockService) FieldsAsJSON(infConn influx.Client, id, db, rp, measure string, resultCol string, skipColumns []string) (transformation.Transformer, error) {
 	return p.fieldsT, p.fieldsErr
 }
 

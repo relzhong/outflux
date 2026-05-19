@@ -20,7 +20,7 @@ func createTransformers(transformerService TransformerService, pipeID string, in
 
 	if conf.TagsAsJSON {
 		id := fmt.Sprintf(transformerIDTemplate, pipeID, "tagsAsJSON")
-		tagsTransformer, err := transformerService.TagsAsJSON(infConn, id, inputDb, conf.RetentionPolicy, measure, conf.TagsCol)
+		tagsTransformer, err := transformerService.TagsAsJSON(infConn, id, inputDb, conf.RetentionPolicy, measure, conf.TagsCol, conf.SkipColumns)
 		if err != nil {
 			return nil, err
 		}
@@ -32,7 +32,7 @@ func createTransformers(transformerService TransformerService, pipeID string, in
 
 	if conf.FieldsAsJSON {
 		id := fmt.Sprintf(transformerIDTemplate, pipeID, "fieldsAsJSON")
-		fieldsTransformer, err := transformerService.FieldsAsJSON(infConn, id, inputDb, conf.RetentionPolicy, measure, conf.FieldsCol)
+		fieldsTransformer, err := transformerService.FieldsAsJSON(infConn, id, inputDb, conf.RetentionPolicy, measure, conf.FieldsCol, conf.SkipColumns)
 		if err != nil {
 			return nil, err
 		}

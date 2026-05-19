@@ -46,6 +46,7 @@ func initSchemaTransferCmd() *cobra.Command {
 	schemaTransferCmd.PersistentFlags().Bool(flagparsers.MultishardIntFloatCast, flagparsers.DefaultMultishardIntFloatCast, "If a field is Int64 in one shard, and Float64 in another, with this flag it will be cast to Float64 despite possible data loss")
 	schemaTransferCmd.PersistentFlags().String(flagparsers.ChunkTimeIntervalFlag, flagparsers.DefaultChunkTimeInterval, "chunk_time_interval of the hypertables created by Outflux")
 	schemaTransferCmd.PersistentFlags().StringArray(flagparsers.TableMapFlag, nil, "Map an InfluxDB measurement to a PostgreSQL table name. May be repeated: --table-map source=target")
+	schemaTransferCmd.PersistentFlags().StringArray(flagparsers.SkipColumnFlag, nil, "Skip an InfluxDB source tag or field. May be repeated: --skip-column column_name")
 	return schemaTransferCmd
 }
 

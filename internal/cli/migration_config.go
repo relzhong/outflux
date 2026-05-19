@@ -28,6 +28,7 @@ type MigrationConfig struct {
 	OnConflictConvertIntToFloat          bool
 	ChunkTimeInterval                    string
 	TableMappings                        map[string]string
+	SkipColumns                          []string
 	ValidateNotNullSourceData            bool
 	MigrateByShardGroup                  bool
 	WindowPause                          string

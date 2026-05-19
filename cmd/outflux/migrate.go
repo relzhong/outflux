@@ -58,6 +58,7 @@ func initMigrateCmd() *cobra.Command {
 	migrateCmd.PersistentFlags().Bool(flagparsers.MultishardIntFloatCast, flagparsers.DefaultMultishardIntFloatCast, "If a field is Int64 in one shard, and Float64 in another, with this flag it will be cast to Float64 despite possible data loss")
 	migrateCmd.PersistentFlags().String(flagparsers.ChunkTimeIntervalFlag, flagparsers.DefaultChunkTimeInterval, "chunk_time_interval of the hypertables created by Outflux")
 	migrateCmd.PersistentFlags().StringArray(flagparsers.TableMapFlag, nil, "Map an InfluxDB measurement to a PostgreSQL table name. May be repeated: --table-map source=target")
+	migrateCmd.PersistentFlags().StringArray(flagparsers.SkipColumnFlag, nil, "Skip an InfluxDB source tag or field. May be repeated: --skip-column column_name")
 	migrateCmd.PersistentFlags().Bool(flagparsers.ValidateNotNullSourceData, false, "Validate the selected source rows before accepting existing non-time NOT NULL target columns")
 	migrateCmd.PersistentFlags().Bool(flagparsers.MigrateByShardGroupFlag, false, "Migrate one shard-aligned window at a time instead of scanning the full selected range at once")
 	migrateCmd.PersistentFlags().String(flagparsers.WindowPauseFlag, flagparsers.DefaultWindowPause, "Optional pause between shard windows, e.g. 500ms")

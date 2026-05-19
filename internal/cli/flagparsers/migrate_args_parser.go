@@ -85,6 +85,10 @@ func FlagsToMigrateConfig(flags *pflag.FlagSet, args []string) (*cli.ConnectionC
 	if err != nil {
 		return nil, nil, err
 	}
+	skipColumns, err := parseSkipColumns(flags)
+	if err != nil {
+		return nil, nil, err
+	}
 	validateNotNullSourceData, _ := flags.GetBool(ValidateNotNullSourceData)
 	migrateByShardGroup, _ := flags.GetBool(MigrateByShardGroupFlag)
 	windowPause, _ := flags.GetString(WindowPauseFlag)
@@ -113,6 +117,7 @@ func FlagsToMigrateConfig(flags *pflag.FlagSet, args []string) (*cli.ConnectionC
 		OnConflictConvertIntToFloat:          intToFloat,
 		ChunkTimeInterval:                    chunkTimeInterval,
 		TableMappings:                        tableMappings,
+		SkipColumns:                          skipColumns,
 		ValidateNotNullSourceData:            validateNotNullSourceData,
 		MigrateByShardGroup:                  migrateByShardGroup,
 		WindowPause:                          windowPause,

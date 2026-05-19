@@ -36,12 +36,36 @@ func (e *Extractor) Prepare() (*idrf.Bundle, error) {
 	}
 
 	log.Printf("Discovered: %s", discoveredDataSet.String())
+	discoveredDataSet, err = filterSkippedColumns(discoveredDataSet, e.Config.MeasureExtraction.SkipColumns)
+	if err != nil {
+		return nil, err
+	}
 	e.cachedElementData = &idrf.Bundle{
 		DataDef:  discoveredDataSet,
 		DataChan: make(chan idrf.Row, e.Config.DataBufferSize),
 	}
 
 	return e.cachedElementData, nil
+}
+
+func filterSkippedColumns(dataSet *idrf.DataSet, skipColumns []string) (*idrf.DataSet, error) {
+	if len(skipColumns) == 0 {
+		return dataSet, nil
+	}
+	skip := make(map[string]bool, len(skipColumns))
+	for _, column := range skipColumns {
+		skip[column] = true
+	}
+	columns := make([]*idrf.Column, 0, len(dataSet.Columns))
+	for _, column := range dataSet.Columns {
+		if column.Name == dataSet.TimeColumn || !skip[column.Name] {
+			columns = append(columns, column)
+		}
+	}
+	if len(columns) <= 1 {
+		return nil, fmt.Errorf("all non-time columns skipped for measure '%s'", dataSet.DataSetName)
+	}
+	return idrf.NewDataSet(dataSet.DataSetName, columns, dataSet.TimeColumn)
 }
 
 // Start pulls the data from an InfluxDB measure and feeds it to a data channel

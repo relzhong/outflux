@@ -45,6 +45,10 @@ func FlagsToSchemaTransferConfig(flags *pflag.FlagSet, args []string) (*cli.Conn
 	if err != nil {
 		return nil, nil, err
 	}
+	skipColumns, err := parseSkipColumns(flags)
+	if err != nil {
+		return nil, nil, err
+	}
 	return connectionArgs, &cli.MigrationConfig{
 		RetentionPolicy:             retentionPolicy,
 		OutputSchema:                outputSchema,
@@ -59,5 +63,6 @@ func FlagsToSchemaTransferConfig(flags *pflag.FlagSet, args []string) (*cli.Conn
 		OnConflictConvertIntToFloat: intToFloat,
 		ChunkTimeInterval:           chunkTimeInterval,
 		TableMappings:               tableMappings,
+		SkipColumns:                 skipColumns,
 	}, nil
 }

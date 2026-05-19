@@ -32,6 +32,7 @@ const (
 	FieldsColumnFlag            = "fields-column"
 	ChunkTimeIntervalFlag       = "chunk-time-interval"
 	TableMapFlag                = "table-map"
+	SkipColumnFlag              = "skip-column"
 	ValidateNotNullSourceData   = "validate-not-null-source-data"
 	MigrateByShardGroupFlag     = "migrate-by-shard-group"
 	WindowPauseFlag             = "window-pause"
